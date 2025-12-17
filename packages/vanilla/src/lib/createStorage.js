@@ -4,15 +4,15 @@
  * - SSR 지원 (Node.js 환경)
  * - 장바구니 상태 localStorage 저장 (브라우저 환경)
  */
-export const createStorage = (key, storageType = 'localStorage') => {
+export const createStorage = (key, storageType = "localStorage") => {
   // 1. 서버 환경 감지 (window 객체 부재)
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     // 서버에서는 저장 기능이 필요 없으므로, 에러 방지용 '가짜(Mock) 객체'를 반환
     return {
-      get: () => null,     // 조회 시 항상 데이터 없음
-      set: () => {},       // 저장 시 아무 동작 안 함
-      remove: () => {},    // 삭제 시 아무 동작 안 함
-      clear: () => {}
+      get: () => null, // 조회 시 항상 데이터 없음
+      set: () => {}, // 저장 시 아무 동작 안 함
+      remove: () => {}, // 삭제 시 아무 동작 안 함
+      clear: () => {},
     };
   }
 
@@ -48,8 +48,8 @@ export const createStorage = (key, storageType = 'localStorage') => {
       try {
         storage.clear();
       } catch (e) {
-        console.warn('[Storage] Clear Error:', e);
+        console.warn("[Storage] Clear Error:", e);
       }
-    }
+    },
   };
 };

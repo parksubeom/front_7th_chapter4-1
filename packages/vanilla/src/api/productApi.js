@@ -21,14 +21,14 @@ export async function getProducts(params = {}) {
   if (!response.ok) {
     throw new Error(`API Call Failed: ${response.status}`);
   }
-  
+
   return await response.json();
 }
 
 export async function getProduct(productId) {
   // [수정] URL 앞에 API_HOST 추가
   const response = await fetch(`${API_HOST}/api/products/${productId}`);
-  
+
   if (!response.ok) {
     throw new Error(`API Call Failed: ${response.status}`);
   }
@@ -39,7 +39,7 @@ export async function getProduct(productId) {
 export async function getCategories() {
   // [수정] URL 앞에 API_HOST 추가
   const response = await fetch(`${API_HOST}/api/categories`);
-  
+
   if (!response.ok) {
     throw new Error(`API Call Failed: ${response.status}`);
   }

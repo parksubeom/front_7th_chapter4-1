@@ -23,10 +23,13 @@ export const loadProductsAndCategories = async (serverQuery = null, serverStore 
   });
 
   try {
-    const [{ products, pagination: { total } }, categories] = await Promise.all([
-      getProducts(targetQuery),
-      getCategories()
-    ]);
+    const [
+      {
+        products,
+        pagination: { total },
+      },
+      categories,
+    ] = await Promise.all([getProducts(targetQuery), getCategories()]);
 
     targetStore.dispatch({
       type: PRODUCT_ACTIONS.SETUP,
@@ -48,7 +51,10 @@ export const loadProducts = async (resetList = true) => {
       payload: { loading: true, status: "pending", error: null },
     });
 
-    const { products, pagination: { total } } = await getProducts(router.query);
+    const {
+      products,
+      pagination: { total },
+    } = await getProducts(router.query);
     const payload = { products, totalCount: total };
 
     if (resetList) {

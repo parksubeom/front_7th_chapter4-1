@@ -1,10 +1,7 @@
 import { http, HttpResponse } from "msw";
 // [수정 1] JSON 파일을 읽기 위해 Node.js 내장 모듈 사용
-import { createRequire } from "module";
 
-// [수정 2] ESM 환경(Node.js)에서 JSON을 import 하기 위한 require 생성
-const require = createRequire(import.meta.url);
-const items = require("./items.json");
+import items from "./items.json" with { type: "json" };
 
 const delay = async () => await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -74,7 +71,7 @@ export const handlers = [
     try {
       // 1. 요청이 들어왔는지 확인
       console.log("[MSW] GET /api/products 요청 수신");
-      
+
       const url = new URL(request.url);
       const page = parseInt(url.searchParams.get("page") ?? url.searchParams.get("current")) || 1;
       const limit = parseInt(url.searchParams.get("limit")) || 20;
@@ -117,7 +114,6 @@ export const handlers = [
 
       await delay();
       return HttpResponse.json(response);
-
     } catch (error) {
       // [핵심] 에러 내용을 서버 터미널에 출력
       console.error("[MSW Handler Error] 핸들러 내부 에러 발생:", error);

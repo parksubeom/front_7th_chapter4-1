@@ -19,7 +19,7 @@ export const App = ({ content, state, url }) => {
       <div id="root">${content}</div>
       
       <script>
-        window.__INITIAL_STATE__ = ${JSON.stringify(state).replace(/</g, '\\u003c')};
+        window.__INITIAL_STATE__ = ${JSON.stringify(state).replace(/</g, "\\u003c")};
       </script>
       
       <script type="module" src="/src/main.js"></script>

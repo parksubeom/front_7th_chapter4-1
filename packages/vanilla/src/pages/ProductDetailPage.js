@@ -1,6 +1,6 @@
 import { productStore } from "../stores/index.js";
 import { loadProductDetailForPage } from "../services/index.js";
-import { router, withLifecycle } from "../router/index.js"; 
+import { router, withLifecycle } from "../router/index.js";
 import { PageWrapper } from "./PageWrapper.js";
 
 const loadingContent = `
@@ -34,7 +34,7 @@ const ErrorContent = ({ error }) => `
   </div>
 `;
 
-function ProductDetail({ product, relatedProducts = [] }) {
+ function ProductDetail({ product, relatedProducts = [] }) {
   const {
     productId,
     title,
@@ -231,7 +231,7 @@ const ProductDetailPageComponent = withLifecycle(
     },
     watches: [
       () => [router.params.id],
-      () => loadProductDetailForPage(router.params.id) // CSR 동작: ID 변경 감지
+      () => loadProductDetailForPage(router.params.id), // CSR 동작: ID 변경 감지
     ],
   },
   () => {

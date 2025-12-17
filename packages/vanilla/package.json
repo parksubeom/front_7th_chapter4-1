@@ -38,6 +38,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@vitest/coverage-v8": "latest",
     "@vitest/ui": "^2.1.8",
+    "concurrently": "latest",
     "eslint": "^9.16.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
@@ -49,8 +50,7 @@
     "msw": "^2.10.2",
     "prettier": "^3.4.2",
     "vite": "npm:rolldown-vite@latest",
-    "vitest": "latest",
-    "concurrently": "latest"
+    "vitest": "latest"
   },
   "msw": {
     "workerDirectory": [
@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "compression": "^1.8.1",
+    "cross-fetch": "^4.1.0",
     "express": "^5.1.0",
     "sirv": "^3.0.1"
   }

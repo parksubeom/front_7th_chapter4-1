@@ -20,7 +20,7 @@ const findCartItem = (items, productId) => {
 export const cartReducer = (state = initialState, action) => {
   // [중요] 서버 호환성을 위해 스토리지 직접 접근 코드(cartStorage.get)는 제거하거나
   // 액션(LOAD_FROM_STORAGE)으로 처리해야 합니다.
-  
+
   switch (action.type) {
     case CART_ACTIONS.ADD_ITEM: {
       const { product, quantity = 1 } = action.payload;
