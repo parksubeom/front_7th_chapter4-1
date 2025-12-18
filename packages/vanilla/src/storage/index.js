@@ -1,1 +1,1 @@
-export * from "./cartStorage.js";
+export * from "./cartStorage";

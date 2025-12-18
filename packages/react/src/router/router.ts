@@ -1,6 +1,10 @@
 // 글로벌 라우터 인스턴스
-import { Router } from "@hanghae-plus/lib";
-import { BASE_URL } from "../constants";
-import type { FunctionComponent } from "react";
+import type { FC } from "react";
+import { HomePage, NotFoundPage, ProductDetailPage } from "../pages";
 
-export const router = new Router<FunctionComponent>(BASE_URL);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const routes: Record<string, FC<any>> = {
+  "/": HomePage,
+  "/product/:id/": ProductDetailPage,
+  ".*": NotFoundPage,
+};

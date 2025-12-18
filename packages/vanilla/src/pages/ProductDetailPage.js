@@ -1,6 +1,8 @@
-import { productStore } from "../stores/index.js";
-import { loadProductDetailForPage } from "../services/index.js";
-import { router, withLifecycle } from "../router/index.js";
+import { getProduct, getProducts } from "../api/productApi.js";
+import { withIsomorphicLifecycle } from "../router/withLifecycle.js";
+import { loadProductDetailForPage } from "../services";
+import { initialProductState, PRODUCT_ACTIONS, productStore } from "../stores";
+import { isServer } from "../utils/runtime.js";
 import { PageWrapper } from "./PageWrapper.js";
 
 const loadingContent = `
@@ -35,8 +37,6 @@ const ErrorContent = ({ error }) => `
 `;
 
 function ProductDetail({ product, relatedProducts = [] }) {
-  if (!product) return "";
-
   const {
     productId,
     title,
@@ -53,11 +53,13 @@ function ProductDetail({ product, relatedProducts = [] }) {
 
   const price = Number(lprice);
 
+  // 브레드크럼 생성
   const breadcrumbItems = [];
   if (category1) breadcrumbItems.push({ name: category1, category: "category1", value: category1 });
   if (category2) breadcrumbItems.push({ name: category2, category: "category2", value: category2 });
 
   return `
+    <!-- 브레드크럼 -->
     ${
       breadcrumbItems.length > 0
         ? `
@@ -65,23 +67,16 @@ function ProductDetail({ product, relatedProducts = [] }) {
         <div class="flex items-center space-x-2 text-sm text-gray-600">
           <a href="/" data-link class="hover:text-blue-600 transition-colors">홈</a>
           ${breadcrumbItems
-            .map((item) => {
-              // [수정] 브레드크럼 클릭 시 상위 카테고리 정보도 포함하도록 속성 구성
-              // category1 버튼: data-category1="값"
-              // category2 버튼: data-category1="값" data-category2="값"
-              let dataAttrs = `data-category1="${category1}"`;
-              if (item.category === "category2") {
-                dataAttrs += ` data-category2="${category2}"`;
-              }
-              return `
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-                <button class="breadcrumb-link hover:underline" ${dataAttrs}>
-                  ${item.name}
-                </button>
-              `;
-            })
+            .map(
+              (item) => `
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            <button class="breadcrumb-link" data-${item.category}="${item.value}">
+              ${item.name}
+            </button>
+          `,
+            )
             .join("")}
         </div>
       </nav>
@@ -89,7 +84,9 @@ function ProductDetail({ product, relatedProducts = [] }) {
         : ""
     }
 
+    <!-- 상품 상세 정보 -->
     <div class="bg-white rounded-lg shadow-sm mb-6">
+      <!-- 상품 이미지 -->
       <div class="p-4">
         <div class="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
           <img src="${image}" 
@@ -97,10 +94,12 @@ function ProductDetail({ product, relatedProducts = [] }) {
                class="w-full h-full object-cover product-detail-image">
         </div>
         
+        <!-- 상품 정보 -->
         <div>
           <p class="text-sm text-gray-600 mb-1">${brand}</p>
           <h1 class="text-xl font-bold text-gray-900 mb-3">${title}</h1>
           
+          <!-- 평점 및 리뷰 -->
           ${
             rating > 0
               ? `
@@ -124,14 +123,17 @@ function ProductDetail({ product, relatedProducts = [] }) {
               : ""
           }
           
+          <!-- 가격 -->
           <div class="mb-4">
             <span class="text-2xl font-bold text-blue-600">${price.toLocaleString()}원</span>
           </div>
           
+          <!-- 재고 -->
           <div class="text-sm text-gray-600 mb-4">
             재고 ${stock.toLocaleString()}개
           </div>
           
+          <!-- 설명 -->
           ${
             description
               ? `
@@ -144,6 +146,7 @@ function ProductDetail({ product, relatedProducts = [] }) {
         </div>
       </div>
       
+      <!-- 수량 선택 및 액션 -->
       <div class="border-t border-gray-200 p-4">
         <div class="flex items-center justify-between mb-4">
           <span class="text-sm font-medium text-gray-900">수량</span>
@@ -174,6 +177,7 @@ function ProductDetail({ product, relatedProducts = [] }) {
           </div>
         </div>
         
+        <!-- 액션 버튼 -->
         <button id="add-to-cart-btn" 
                 data-product-id="${productId}"
                 class="w-full bg-blue-600 text-white py-3 px-4 rounded-md 
@@ -183,13 +187,15 @@ function ProductDetail({ product, relatedProducts = [] }) {
       </div>
     </div>
 
+    <!-- 상품 목록으로 이동 -->
     <div class="mb-6">
       <button class="block w-full text-center bg-gray-100 text-gray-700 py-3 px-4 rounded-md 
-               hover:bg-gray-200 transition-colors go-to-product-list">
+                hover:bg-gray-200 transition-colors go-to-product-list">
         상품 목록으로 돌아가기
       </button>
     </div>
 
+    <!-- 관련 상품 -->
     ${
       relatedProducts.length > 0
         ? `
@@ -227,21 +233,66 @@ function ProductDetail({ product, relatedProducts = [] }) {
   `;
 }
 
-const ProductDetailPageComponent = withLifecycle(
+const ssrFetcher = async ({ params }) => {
+  try {
+    const product = await getProduct(params.id);
+    let relatedProducts = [];
+
+    if (product.category2) {
+      const response = await getProducts({
+        category2: product.category,
+        limit: 20,
+        page: 1,
+      });
+      relatedProducts = response.products.filter((product) => product.productId !== params.id);
+    }
+
+    return {
+      currentProduct: product,
+      relatedProducts,
+      error: null,
+      loading: false,
+    };
+  } catch (error) {
+    return {
+      ...initialProductState,
+      error: error.message,
+      loading: false,
+    };
+  }
+};
+
+/**
+ * 상품 상세 페이지 컴포넌트
+ */
+export const ProductDetailPage = withIsomorphicLifecycle(
   {
-    onMount: () => {
-      loadProductDetailForPage(router.params.id);
+    ssr: ssrFetcher,
+    metadata: async ({ params }) => {
+      const product = await getProduct(params.id);
+
+      return {
+        title: `${product.title} - 쇼핑몰`,
+      };
+    },
+    initStore: ({ data }) => {
+      productStore.dispatch({
+        type: PRODUCT_ACTIONS.SETUP,
+        payload: { ...productStore.getState(), ...data },
+      });
+    },
+    onMount: ({ params, data }) => {
+      loadProductDetailForPage(params.id, data);
     },
     watches: [
-      () => [router.params.id],
-      () => {
-        const id = router.params.id;
-        if (id) loadProductDetailForPage(id);
+      ({ params }) => [params.id],
+      ({ params } = {}) => {
+        return loadProductDetailForPage(params.id);
       },
     ],
   },
-  () => {
-    const { currentProduct: product, relatedProducts = [], error, loading } = productStore.getState();
+  ({ data }) => {
+    const { currentProduct: product, relatedProducts = [], error, loading } = isServer ? data : productStore.getState();
 
     return PageWrapper({
       headerLeft: `
@@ -255,21 +306,11 @@ const ProductDetailPageComponent = withLifecycle(
           <h1 class="text-lg font-bold text-gray-900">상품 상세</h1>
         </div>
       `.trim(),
-      children:
-        loading || !product
-          ? loadingContent
-          : error
-            ? ErrorContent({ error })
-            : ProductDetail({ product, relatedProducts }),
+      children: loading
+        ? loadingContent
+        : error && !product
+          ? ErrorContent({ error })
+          : ProductDetail({ product, relatedProducts }),
     });
   },
 );
-
-ProductDetailPageComponent.fetchData = async ({ store, params }) => {
-  const { id } = params;
-  if (id) {
-    await loadProductDetailForPage(id, store);
-  }
-};
-
-export const ProductDetailPage = ProductDetailPageComponent;

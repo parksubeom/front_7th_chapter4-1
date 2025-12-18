@@ -1,28 +1,32 @@
-import { ProductCard, ProductCardSkeleton } from "./ProductCard";
-import { router } from "../../../router";
 import { PublicImage } from "../../../components";
-import { useProductStore } from "../hooks";
+import { useRouterQuery } from "../../../router";
+import { useRouterContext } from "../../../router/hooks/useRouterContext";
+import { useProductStore, useProductStoreContext } from "../hooks";
 import { loadProducts } from "../productUseCase";
-
-const retry = async () => {
-  try {
-    await loadProducts(true);
-  } catch (error) {
-    console.error("재시도 실패:", error);
-  }
-};
-
-const goToDetailPage = async (productId: string) => {
-  // 상품 상세 페이지로 이동
-  router.push(`/product/${productId}/`);
-};
+import { ProductCard, ProductCardSkeleton } from "./ProductCard";
 
 /**
  * 상품 목록 컴포넌트
  */
 export function ProductList() {
+  const productStore = useProductStoreContext();
+  const router = useRouterContext();
+  const query = useRouterQuery();
   const { products, loading, error, totalCount } = useProductStore();
   const hasMore = products.length < totalCount;
+
+  const retry = async () => {
+    try {
+      await loadProducts(productStore, query, true);
+    } catch (error) {
+      console.error("재시도 실패:", error);
+    }
+  };
+
+  const goToDetailPage = async (productId: string) => {
+    // 상품 상세 페이지로 이동
+    router.push(`/product/${productId}/`);
+  };
 
   // 에러 상태
   if (error) {

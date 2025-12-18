@@ -1,4 +1,4 @@
-import { ProductCard, ProductCardSkeleton } from "./ProductCard.js";
+import { ProductCard, ProductCardSkeleton } from "./ProductCard";
 
 const loadingSkeleton = Array(6).fill(0).map(ProductCardSkeleton).join("");
 

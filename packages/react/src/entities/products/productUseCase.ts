@@ -1,22 +1,28 @@
+import type { RouterInstance } from "@hanghae-plus/lib";
+import type { FC } from "react";
 import { getCategories, getProduct, getProducts } from "../../api/productApi";
-import { router } from "../../router";
 import type { StringRecord } from "../../types";
-import { initialProductState, PRODUCT_ACTIONS, productStore } from "./productStore";
 import { isNearBottom } from "../../utils";
+import type { ProductStore } from "./hooks";
+import { initialProductState, PRODUCT_ACTIONS } from "./productStore";
 
 const createErrorMessage = (error: unknown, defaultMessage = "알 수 없는 오류 발생") =>
   error instanceof Error ? error.message : defaultMessage;
 
-export const loadProductsAndCategories = async () => {
-  router.query = { current: undefined }; // 항상 첫 페이지로 초기화
-  productStore.dispatch({
-    type: PRODUCT_ACTIONS.SETUP,
-    payload: {
-      ...initialProductState,
-      loading: true,
-      status: "pending",
-    },
-  });
+export const loadProductsAndCategories = async (productStore: ProductStore, router: RouterInstance<FC>) => {
+  // if (productStore.getState().products.length) {
+  //   return;
+  // }
+
+  // router.query = { current: undefined }; // 항상 첫 페이지로 초기화
+  // productStore.dispatch({
+  //   type: PRODUCT_ACTIONS.SETUP,
+  //   payload: {
+  //     ...initialProductState,
+  //     loading: true,
+  //     status: "pending",
+  //   },
+  // });
 
   try {
     const [
@@ -47,7 +53,7 @@ export const loadProductsAndCategories = async () => {
   }
 };
 
-export const loadProducts = async (resetList = true) => {
+export const loadProducts = async (productStore: ProductStore, query: StringRecord, resetList = true) => {
   try {
     productStore.dispatch({
       type: PRODUCT_ACTIONS.SETUP,
@@ -57,7 +63,7 @@ export const loadProducts = async (resetList = true) => {
     const {
       products,
       pagination: { total },
-    } = await getProducts(router.query);
+    } = await getProducts(query);
     const payload = { products, totalCount: total };
 
     // 페이지 리셋이면 새로 설정, 아니면 기존에 추가
@@ -75,7 +81,7 @@ export const loadProducts = async (resetList = true) => {
   }
 };
 
-export const loadMoreProducts = async () => {
+export const loadMoreProducts = async (productStore: ProductStore, router: RouterInstance<FC>) => {
   const state = productStore.getState();
   const hasMore = state.products.length < state.totalCount;
 
@@ -84,34 +90,35 @@ export const loadMoreProducts = async () => {
   }
 
   router.query = { current: Number(router.query.current ?? 1) + 1 };
-  await loadProducts(false);
+  await loadProducts(productStore, router.query, false);
 };
-export const searchProducts = (search: string) => {
+export const searchProducts = (router: RouterInstance<FC>, search: string) => {
   router.query = { search, current: 1 };
 };
 
-export const setCategory = (categoryData: StringRecord) => {
+export const setCategory = (router: RouterInstance<FC>, categoryData: StringRecord) => {
   router.query = { ...categoryData, current: 1 };
 };
 
-export const setSort = (sort: string) => {
+export const setSort = (router: RouterInstance<FC>, sort: string) => {
   router.query = { sort, current: 1 };
 };
 
-export const setLimit = (limit: number) => {
+export const setLimit = (router: RouterInstance<FC>, limit: number) => {
   router.query = { limit, current: 1 };
 };
 
-export const loadProductDetailForPage = async (productId: string) => {
+export const loadProductDetailForPage = async (productStore: ProductStore, productId: string) => {
   try {
     const currentProduct = productStore.getState().currentProduct;
     if (productId === currentProduct?.productId) {
       // 관련 상품 로드 (같은 category2 기준)
       if (currentProduct.category2) {
-        await loadRelatedProducts(currentProduct.category2, productId);
+        await loadRelatedProducts(productStore, currentProduct.category2, productId);
       }
       return;
     }
+
     // 현재 상품 클리어
     productStore.dispatch({
       type: PRODUCT_ACTIONS.SETUP,
@@ -133,7 +140,7 @@ export const loadProductDetailForPage = async (productId: string) => {
 
     // 관련 상품 로드 (같은 category2 기준)
     if (product.category2) {
-      await loadRelatedProducts(product.category2, productId);
+      await loadRelatedProducts(productStore, product.category2, productId);
     }
   } catch (error) {
     console.error("상품 상세 페이지 로드 실패:", error);
@@ -145,7 +152,7 @@ export const loadProductDetailForPage = async (productId: string) => {
   }
 };
 
-export const loadRelatedProducts = async (category2: string, excludeProductId: string) => {
+export const loadRelatedProducts = async (productStore: ProductStore, category2: string, excludeProductId: string) => {
   try {
     const params = {
       category2,
@@ -172,7 +179,7 @@ export const loadRelatedProducts = async (category2: string, excludeProductId: s
   }
 };
 
-export const loadNextProducts = async () => {
+export const loadNextProducts = async (productStore: ProductStore, router: RouterInstance<FC>) => {
   // 현재 라우트가 홈이 아니면 무한 스크롤 비활성화
   if (router.route?.path !== "/") {
     return;
@@ -188,7 +195,7 @@ export const loadNextProducts = async () => {
     }
 
     try {
-      await loadMoreProducts();
+      await loadMoreProducts(productStore, router);
     } catch (error) {
       console.error("무한 스크롤 로드 실패:", error);
     }

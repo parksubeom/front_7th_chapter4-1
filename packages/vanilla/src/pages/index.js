@@ -1,4 +1,3 @@
-export * from "./HomePage.js";
-export * from "./ProductDetailPage.js";
-export * from "./NotFoundPage.js";
-export * from "./PageWrapper.js"
+export * from "./HomePage";
+export * from "./NotFoundPage";
+export * from "./ProductDetailPage";

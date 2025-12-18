@@ -1,96 +1,54 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import "cross-fetch/dist/node-polyfill.js";
+import fs from "node:fs";
+import path from "node:path";
+import { createServer } from "vite";
+import { mswServer } from "./src/mocks/node.js";
 
-import { productStore, PRODUCT_ACTIONS } from "./src/stores/index.js";
-import { Router } from "./src/lib/Router.js";
-import { registerRoutes } from "./src/router/routes.js";
+mswServer.listen({
+  onUnhandledRequest: "bypass",
+});
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const vite = await createServer({
+  server: { middlewareMode: true },
+  appType: "custom",
+});
 
-const INDEX_HTML_PATH = path.resolve(__dirname, "../../dist/vanilla/index.html");
-const ITEMS_JSON_PATH = path.resolve(__dirname, "./src/mocks/items.json");
+const { render } = await vite.ssrLoadModule("./src/main-server.js");
 
-// [추가] 동적 타이틀 생성 함수
-const getTitle = (store, path) => {
-  if (path === "/" || path === "") return "쇼핑몰 - 홈";
+const joinDist = (...pathnames) => path.join("../../dist/vanilla", ...pathnames);
 
-  const state = store.getState();
-  if (state.currentProduct) {
-    return `${state.currentProduct.title} - 쇼핑몰`;
+const template = fs.readFileSync(joinDist("/index.html"), "utf-8");
+
+async function generateStaticSite(pathname, ssg) {
+  const fullPathname = pathname.endsWith(".html") ? joinDist(pathname) : joinDist(pathname, "/index.html");
+  const parsedPath = path.parse(fullPathname);
+
+  const rendered = await render(pathname, {}, ssg);
+
+  const html = template
+    .replace(`<!--app-head-->`, rendered.head ?? "")
+    .replace(`<!--app-html-->`, rendered.html ?? "")
+    .replace(
+      `<!-- app-data -->`,
+      `<script>window.__INITIAL_DATA__ = ${JSON.stringify(rendered.__INITIAL_DATA__)};</script>`,
+    );
+
+  if (!fs.existsSync(parsedPath.dir)) {
+    fs.mkdirSync(parsedPath.dir, { recursive: true });
   }
-  return "Vanilla Javascript Shopping Mall";
-};
 
-async function generateStaticSite() {
-  console.log("🚀 Generating Static Site...");
-
-  try {
-    let templatePath = INDEX_HTML_PATH;
-    if (!fs.existsSync(templatePath)) {
-      const altPath = path.resolve(__dirname, "../dist/vanilla/index.html"); // 로컬 dist 확인
-      if (fs.existsSync(altPath)) templatePath = altPath;
-      else throw new Error(`Template not found. Run 'pnpm build' first.`);
-    }
-    const template = fs.readFileSync(templatePath, "utf-8");
-    const itemsData = fs.readFileSync(ITEMS_JSON_PATH, "utf-8");
-    const items = JSON.parse(itemsData);
-
-    const router = new Router();
-    registerRoutes(router);
-
-    // --- 1. 메인 페이지 생성 ---
-    const match = router.match("/");
-    const { component: HomePage } = match;
-
-    // 데이터 주입
-    const categories = {};
-    items.forEach((item) => {
-      if (!categories[item.category1]) categories[item.category1] = {};
-      if (item.category2) categories[item.category1][item.category2] = {};
-    });
-
-    productStore.dispatch({
-      type: PRODUCT_ACTIONS.SETUP,
-      payload: {
-        products: items.slice(0, 20),
-        categories,
-        totalCount: items.length,
-        loading: false,
-        status: "done",
-        currentProduct: null, // 홈이므로 null
-      },
-    });
-
-    const appHtml = HomePage();
-
-    // 상태 JSON 생성
-    const initialState = {
-      product: productStore.getState(),
-      cart: { items: [], selectedAll: false },
-    };
-    const stateJson = JSON.stringify(initialState).replace(/</g, "\\u003c");
-
-    // HTML 조립
-    let result = template.replace(/<div id="root">.*?<\/div>/s, `<div id="root">${appHtml}</div>`);
-
-    // [핵심] 타이틀 교체
-    const title = getTitle(productStore, "/");
-    result = result.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
-
-    if (result.includes("window.__INITIAL_STATE__")) {
-      result = result.replace(/window\.__INITIAL_STATE__\s*=\s*\{.*?\};/s, `window.__INITIAL_STATE__ = ${stateJson};`);
-    } else {
-      result = result.replace("</body>", `<script>window.__INITIAL_STATE__ = ${stateJson};</script></body>`);
-    }
-
-    fs.writeFileSync(templatePath, result);
-    console.log(`✅ Static Site Generated Successfully at ${templatePath}`);
-  } catch (error) {
-    console.error("❌ Failed to generate static site:", error);
-    process.exit(1);
-  }
+  fs.writeFileSync(fullPathname, html);
 }
 
-generateStaticSite();
+// 404 생성
+await generateStaticSite("/404.html");
+
+// 홈 생성
+await generateStaticSite("/");
+
+// 상세페이지 생성
+const { getProducts } = await vite.ssrLoadModule("./src/api/productApi.js");
+const { products } = await getProducts();
+await Promise.all(products.map(async ({ productId }) => await generateStaticSite(`/product/${productId}/`)));
+
+mswServer.close();
+vite.close();

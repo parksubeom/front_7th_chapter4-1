@@ -2,6 +2,8 @@
 import type { Categories, Product } from "../entities";
 import type { StringRecord } from "../types.ts";
 
+const BASE_URL = "http://localhost";
+
 interface ProductsResponse {
   products: Product[];
   pagination: {
@@ -33,19 +35,19 @@ export async function getProducts(params: StringRecord = {}): Promise<ProductsRe
     sort,
   });
 
-  const response = await fetch(`/api/products?${searchParams}`);
+  const response = await fetch(`${BASE_URL}/api/products?${searchParams}`);
 
   return await response.json();
 }
 
 // 상품 상세 조회
 export async function getProduct(productId: string): Promise<Product> {
-  const response = await fetch(`/api/products/${productId}`);
+  const response = await fetch(`${BASE_URL}/api/products/${productId}`);
   return await response.json();
 }
 
 // 카테고리 목록 조회
 export async function getCategories(): Promise<Categories> {
-  const response = await fetch("/api/categories");
+  const response = await fetch(`${BASE_URL}/api/categories`);
   return await response.json();
 }

@@ -1,6 +1,19 @@
-import { Router } from "../lib/Router.js";
+// 글로벌 라우터 인스턴스
 import { BASE_URL } from "../constants.js";
+import { ClientRouter, ServerRouter } from "../lib";
+import { HomePage } from "../pages/HomePage.js";
+import { NotFoundPage } from "../pages/NotFoundPage.js";
+import { ProductDetailPage } from "../pages/ProductDetailPage.js";
+import { isServer } from "../utils/runtime.js";
 
-// [수정] 서버에서도 router 인스턴스가 생성되어야 합니다.
-// (그래야 server.js에서 router.query 등을 주입할 수 있음)
-export const router = new Router(BASE_URL);
+export const routerMatches = {
+  "/": HomePage,
+  "/product/:id/": ProductDetailPage,
+  ".*": NotFoundPage,
+};
+
+export const router = isServer
+  ? // 인터페이스 맞추는 용도
+    // 서버 요청마다 상태 격리를 위해 사용하지는 않음
+    new ServerRouter({})
+  : new ClientRouter(BASE_URL, routerMatches);

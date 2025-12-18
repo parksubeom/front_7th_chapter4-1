@@ -1,5 +1,5 @@
-import { cartStore, uiStore } from "../stores/index.js";
-import { CartModal, Footer, Toast } from "../components/index.js";
+import { CartModal, Footer, Toast } from "../components";
+import { cartStore, uiStore } from "../stores";
 
 export const PageWrapper = ({ headerLeft, children }) => {
   const cart = cartStore.getState();
