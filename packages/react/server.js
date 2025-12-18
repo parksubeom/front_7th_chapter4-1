@@ -20,19 +20,6 @@ mswServer.listen({
   onUnhandledRequest: "bypass",
 });
 
-const templateHtml = prod ? await fs.readFile("./dist/react/index.html", "utf-8") : "";
-
-const vite = await createServer({
-  server: { middlewareMode: true },
-  appType: "custom",
-  base,
-});
-
-const { mswServer } = await vite.ssrLoadModule("./src/mocks/node.ts");
-mswServer.listen({
-  onUnhandledRequest: "bypass",
-});
-
 const app = express();
 
 // Add Vite or respective production middlewares
