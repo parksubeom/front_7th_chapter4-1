@@ -65,16 +65,23 @@ function ProductDetail({ product, relatedProducts = [] }) {
         <div class="flex items-center space-x-2 text-sm text-gray-600">
           <a href="/" data-link class="hover:text-blue-600 transition-colors">홈</a>
           ${breadcrumbItems
-            .map(
-              (item) => `
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-            <button class="breadcrumb-link" data-${item.category}="${item.value}">
-              ${item.name}
-            </button>
-          `,
-            )
+            .map((item) => {
+              // [수정] 브레드크럼 클릭 시 상위 카테고리 정보도 포함하도록 속성 구성
+              // category1 버튼: data-category1="값"
+              // category2 버튼: data-category1="값" data-category2="값"
+              let dataAttrs = `data-category1="${category1}"`;
+              if (item.category === "category2") {
+                dataAttrs += ` data-category2="${category2}"`;
+              }
+              return `
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+                <button class="breadcrumb-link hover:underline" ${dataAttrs}>
+                  ${item.name}
+                </button>
+              `;
+            })
             .join("")}
         </div>
       </nav>
@@ -220,22 +227,17 @@ function ProductDetail({ product, relatedProducts = [] }) {
   `;
 }
 
-/**
- * [ISOMORPHIC] 상품 상세 페이지 컴포넌트
- */
 const ProductDetailPageComponent = withLifecycle(
   {
     onMount: () => {
-      // CSR 동작: 마운트 시 데이터 로드
       loadProductDetailForPage(router.params.id);
     },
     watches: [
       () => [router.params.id],
-      // [수정] callback에 인자가 전달되지 않으므로 router에서 직접 조회하여 실행
       () => {
         const id = router.params.id;
         if (id) loadProductDetailForPage(id);
-      }
+      },
     ],
   },
   () => {
@@ -253,18 +255,16 @@ const ProductDetailPageComponent = withLifecycle(
           <h1 class="text-lg font-bold text-gray-900">상품 상세</h1>
         </div>
       `.trim(),
-      children: (loading || !product)
-        ? loadingContent
-        : error
-          ? ErrorContent({ error })
-          : ProductDetail({ product, relatedProducts }),
+      children:
+        loading || !product
+          ? loadingContent
+          : error
+            ? ErrorContent({ error })
+            : ProductDetail({ product, relatedProducts }),
     });
   },
 );
 
-/**
- * [SSR 필수] 서버 사이드 데이터 프리패칭
- */
 ProductDetailPageComponent.fetchData = async ({ store, params }) => {
   const { id } = params;
   if (id) {

@@ -5,53 +5,61 @@ import { loadCartFromStorage } from "./services/index.js";
 import { BASE_URL } from "./constants.js";
 import { router } from "./router/router.js";
 import { registerRoutes } from "./router/routes.js";
+import { productStore, PRODUCT_ACTIONS } from "./stores/index.js";
 
 async function main() {
-  // 1. 라우트 등록
+  // 1. 라우트 등록 (가장 먼저)
   registerRoutes(router);
 
-  // 2. 이벤트 등록 및 초기화
+  // 2. 초기 데이터 복원 (Hydration)
+  if (window.__INITIAL_STATE__) {
+    const initialState = window.__INITIAL_STATE__;
+    if (initialState.product) {
+      productStore.dispatch({
+        type: PRODUCT_ACTIONS.SETUP,
+        payload: {
+          ...initialState.product,
+          loading: false,
+          status: "done",
+        },
+      });
+    }
+  }
+
+  // 3. 렌더링 시스템 구독 설정
+  // router.start()가 호출되면 첫 렌더링이 발생하므로, 구독을 먼저 해야 합니다.
+  initRender();
+
+  // 4. 이벤트 등록
+  // DOM에 위임하는 방식이므로 순서는 크게 상관없으나,
+  // render 직전에 하는 것이 관례상 안전합니다.
   registerAllEvents();
   registerGlobalEvents();
   loadCartFromStorage();
 
-  // 3. 렌더링 시스템 초기화 (SSR 하이드레이션 포함)
-  // Store가 __INITIAL_STATE__로 초기화되어 있으므로, 불필요한 fetch를 방지할 수 있습니다.
-  initRender();
-
-  // 4. 라우팅 시작 (초기 URL 매칭)
+  // 5. 라우터 시작 (앱 실행)
+  // 이 시점에 첫 화면이 그려집니다.
   router.start();
 }
 
-/**
- * MSW를 비동기로 준비하고 앱을 실행하는 부트스트랩 함수
- */
 async function bootstrap() {
-  // 브라우저 환경이고, 테스트 모드가 아닐 때만 MSW 실행 시도
-  const shouldMock = typeof window !== 'undefined' && import.meta.env?.MODE !== "test";
+  const shouldMock = typeof window !== "undefined" && import.meta.env?.MODE !== "test";
 
   if (shouldMock) {
     try {
-      // [중요] import 구문을 try-catch로 감싸서 모듈 로드 실패(SSR Dev 환경 등) 시 앱이 멈추지 않도록 함
       const { worker } = await import("./mocks/browser.js");
-
       await worker.start({
         serviceWorker: {
           url: `${BASE_URL}mockServiceWorker.js`,
         },
-        // MSW가 처리하지 않는 요청(정적 파일 등)은 경고 없이 통과
         onUnhandledRequest: "bypass",
       });
-
-      console.log("[MSW] Mock Service Worker started successfully");
+      console.log("[MSW] Started");
     } catch (error) {
-      // SSR 개발 환경(Express 정적 서빙)에서는 'msw/browser' 모듈 경로 해석이 안 되어 실패할 수 있음.
-      // 이 경우, 경고만 남기고 앱을 계속 실행하여 '화면은 나오게' 처리합니다.
-      console.warn("[MSW] Failed to start MSW (running without mocks):", error);
+      console.warn("[MSW] Failed:", error);
     }
   }
 
-  // MSW 성공 여부와 관계없이 메인 로직 실행
   await main();
 }
 

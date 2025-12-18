@@ -1,35 +1,44 @@
-// packages/vanilla/src/pages/HomePage.js
-
 import { ProductList, SearchBar } from "../components/index.js";
 import { productStore } from "../stores/index.js";
-import { router, withLifecycle } from "../router/index.js"; 
-import { loadProducts, loadProductsAndCategories } from "../services/index.js"; 
+import { router, withLifecycle } from "../router/index.js";
+import { loadProducts, loadProductsAndCategories } from "../services/index.js";
 import { PageWrapper } from "./PageWrapper.js";
 
 const HomePageComponent = withLifecycle(
   {
     onMount: () => {
       console.log("✅ HomePage mounted.");
-      
-      // [핵심 수정] SSR 최적화 & Double Fetch 방지
-      // 이미 스토어에 상품 데이터가 있다면(SSR로 받아왔다면) 다시 요청하지 않습니다.
+
       const state = productStore.getState();
-      if (!state.products || state.products.length === 0) {
-        console.log("Fetching data on client...");
+      const query = router.query;
+
+      // 1. 필터 조건 확인
+      const hasFilter = query.search || query.category1 || query.category2 || query.sort;
+      // 2. 상품 데이터 유무 확인
+      const isEmpty = !state.products || state.products.length === 0;
+      // 3. [핵심] 카테고리 데이터 유무 확인 (상세 페이지에서 돌아왔을 때 유실됨)
+      const missingCategories = !state.categories || Object.keys(state.categories).length === 0;
+
+      if (missingCategories) {
+        // 카테고리가 없으면 무조건 '상품+카테고리' 모두 로드
+        // (productService.js를 수정했으므로 필터 정보도 유지됩니다)
+        console.log("Categories missing. Fetching both...");
         loadProductsAndCategories();
+      } else if (isEmpty || hasFilter) {
+        // 카테고리는 있는데 상품이 없거나 필터가 바뀌었다면 '상품'만 로드
+        console.log("Fetching products only...");
+        loadProducts(true);
       } else {
-        console.log("Data already loaded via SSR. Skipping client fetch.");
+        console.log("Data already loaded. Skipping fetch.");
       }
     },
-    
+
     watches: [
       () => {
-        // 라우터 쿼리 변경 감지
         const { search, limit, sort, category1, category2 } = router.query;
         return [search, limit, sort, category1, category2];
       },
-      // 쿼리 변경 시에만 상품 목록 재로드
-      () => loadProducts(true), 
+      () => loadProducts(true),
     ],
   },
   () => {
@@ -62,11 +71,7 @@ const HomePageComponent = withLifecycle(
   },
 );
 
-/**
- * [SSR 필수] 서버 사이드 데이터 프리패칭
- */
 HomePageComponent.fetchData = async ({ store, query }) => {
-  // 서비스를 통해 데이터를 가져오고 스토어에 주입합니다.
   await loadProductsAndCategories(query, store);
 };
 

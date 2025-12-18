@@ -5,7 +5,7 @@
  * @param {Object} params.state - 서버에서 완성된 스토어 상태 (Dehydration용)
  * @param {string} params.url - 현재 URL (메타태그 등에 활용 가능)
  */
-export const App = ({ content, state, url }) => {
+export const App = ({ content, state }) => {
   return `
     <!DOCTYPE html>
     <html lang="ko">

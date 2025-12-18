@@ -1,59 +1,54 @@
-// src/render.js
-
 import { cartStore, productStore, uiStore } from "./stores/index.js";
-import { router } from "./router/index.js";
-import { HomePage, NotFoundPage, ProductDetailPage } from "./pages/index.js";
+import { router } from "./router/router.js"; // router 인스턴스 가져오기
+import { NotFoundPage } from "./pages/index.js";
 import { withBatch } from "./utils/index.js";
-
 
 /**
  * 전체 애플리케이션 렌더링
  */
 export const render = withBatch(() => {
-    const rootElement = document.getElementById("root");
-    if (!rootElement) return;
+  const rootElement = document.getElementById("root");
+  if (!rootElement) return;
 
-    // [수정 2] router.target 대신, 현재 URL에 맞는 컴포넌트를 직접 찾습니다.
-    const currentPath = window.location.pathname;
-    
-    // Base Path를 고려한 순수한 경로를 match 함수에 전달해야 함 (Router.js에서 이미 처리)
-    const match = router.match(currentPath); 
-    const PageComponent = match ? match.component : router.match('.*')?.component || NotFoundPage;
-    
-    // 컴포넌트가 함수가 아닐 경우 에러 방지
-    if (typeof PageComponent !== 'function') {
-        console.error("Critical Error: FinalComponent is not a function.", PageComponent);
-        rootElement.innerHTML = "<h1>컴포넌트 로드 실패: 라우터 오류</h1>";
-        return;
-    }
-    
-    // 1. HTML 렌더링 (HTML 문자열 생성)
-    const newHtml = PageComponent();
-    
-    // 2. DOM 업데이트 (HTML 삽입)
-    rootElement.innerHTML = newHtml;
+  // [수정] router.match를 다시 호출하지 않고, router가 결정한 target 컴포넌트를 사용합니다.
+  // router.target이 없으면(아직 라우팅 전) NotFound가 아니라 null 처리를 하거나,
+  // start() 직후라면 초기 매칭된 컴포넌트가 있어야 합니다.
+  const PageComponent = router.target || NotFoundPage;
 
-    // [핵심 수정 3] DOM 삽입 완료 후, PageComponent에 붙은 mount 훅을 호출합니다.
-    // withLifecycle.js에서 ComponentWrapper에 .mount를 붙여 주었음을 가정합니다.
-    if (typeof window !== 'undefined' && typeof PageComponent.mount === 'function') {
-        // DOM 업데이트가 확실히 완료된 '다음 틱'에 호출하여 안정성을 확보합니다.
-        setTimeout(() => {
-             // CSR/SSR 하이드레이션 후 onMount 실행! (로그가 찍히는 순간)
-             PageComponent.mount(); 
-        }, 0);
-    }
+  // 컴포넌트 유효성 검사
+  if (typeof PageComponent !== "function") {
+    // 404 상황에서도 router.target이 NotFoundPage로 설정되어 있어야 함
+    console.error("Critical Error: Component is not a function.", PageComponent);
+    return;
+  }
+
+  // 1. HTML 렌더링 (HTML 문자열 생성)
+  // 컴포넌트는 내부적으로 router.params, router.query 또는 Store를 참조하여 렌더링됩니다.
+  const newHtml = PageComponent();
+
+  // 2. DOM 업데이트 (HTML 삽입)
+  // Diff 알고리즘 없이 통째로 교체 (Vanilla JS 과제 특성상 허용)
+  rootElement.innerHTML = newHtml;
+
+  // 3. 라이프사이클 훅 (mount) 실행
+  // DOM이 그려진 직후 실행되어야 이벤트 리스너 등이 정상 작동합니다.
+  if (typeof PageComponent.mount === "function") {
+    // setTimeout을 사용하여 Call Stack이 비워진 후(DOM 렌더링 후) 실행 보장
+    setTimeout(() => {
+      PageComponent.mount();
+    }, 0);
+  }
 });
 
-
 /**
- * 렌더링 초기화 - Store 변화 감지 설정
+ * 렌더링 초기화 - Store 및 Router 변화 감지 설정
  */
 export function initRender() {
-    // 각 Store의 변화를 감지하여 자동 렌더링
-    productStore.subscribe(render);
-    cartStore.subscribe(render);
-    uiStore.subscribe(render);
-    
-    // [핵심 추가] 라우터 구독은 필수
-    router.subscribe(render); // Router.js에서 subscribe 메서드가 추가되었음
+  // 각 Store의 변화를 감지하여 자동 렌더링
+  productStore.subscribe(render);
+  cartStore.subscribe(render);
+  uiStore.subscribe(render);
+
+  // [중요] 라우터 변경(페이지 이동) 시에도 렌더링 트리거
+  router.subscribe(render);
 }
