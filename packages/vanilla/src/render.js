@@ -39,7 +39,6 @@ async function updateTitle(Component) {
 
     // 문서 타이틀 변경
     if (title) {
-      console.log(title);
       document.title = title;
     }
   } catch (error) {

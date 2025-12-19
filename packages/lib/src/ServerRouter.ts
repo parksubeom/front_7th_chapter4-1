@@ -57,9 +57,7 @@ export class ServerRouter<Handler extends (...args: any[]) => any> {
   }
 
   #findRoute(url: string) {
-    console.log("url", url);
     const { pathname } = new URL(url, "http://localhost");
-    console.log("pathname", pathname);
 
     for (const [routePath, route] of this.#routes) {
       const match = pathname.match(route.regex);
@@ -84,7 +82,6 @@ export class ServerRouter<Handler extends (...args: any[]) => any> {
 
   start(url = "/") {
     this.#route = this.#findRoute(url);
-    console.log("this.target", this.target);
   }
 
   static parseQuery = (search = "") => {
